@@ -2,6 +2,8 @@
 
 English | [Italiano](./README.it.md)
 
+![Patch Selector screenshot](./assets/screenshot-motif-es.png)
+
 Patch Selector is a JUCE-based MIDI effect plugin for macOS hosts such as Logic Pro and MainStage.
 It loads JSON patch libraries, lets the user browse patches by category and name, and emits MIDI Bank Select (`CC0` / `CC32`) plus Program Change messages for external hardware synthesizers.
 
