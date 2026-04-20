@@ -1,0 +1,13 @@
+{
+  "device": {
+    "manufacturer": "Generic",
+    "model": "My Synth",
+    "defaultMidiChannel": 1,
+    "programBase": 1
+  },
+  "patches": [
+    { "msb": 0, "lsb": 0, "program": 1, "name": "Grand Piano", "category": "Piano" },
+    { "msb": 0, "lsb": 0, "program": 2, "name": "Bright Piano", "category": "Piano" },
+    { "msb": 0, "lsb": 64, "program": 17, "name": "Warm Pad", "category": "Pad" }
+  ]
+}

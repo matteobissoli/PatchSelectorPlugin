@@ -1,0 +1,77 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+.Spotlight-V100
+.Trashes
+
+# Editors and IDE metadata
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Xcode user data
+DerivedData/
+build/
+*.xcworkspace/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+*.xcuserdatad/
+*.xcuserstate
+*.moved-aside
+
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+CTestTestfile.cmake
+compile_commands.json
+install_manifest.txt
+Makefile
+Testing/
+_deps/
+
+# Common build directories
+build-*/
+cmake-build-*/
+out/
+bin/
+lib/
+
+# JUCE / plugin build artifacts
+JuceLibraryCode/
+PatchSelectorPlugin/ALL_BUILD/
+PatchSelectorPlugin/PatchSelectorPlugin_All/
+PatchSelectorPlugin/PatchSelectorPlugin_AU/
+PatchSelectorPlugin/PatchSelectorPlugin_Standalone/
+PatchSelectorPlugin/PatchSelectorPlugin_VST3/
+PatchSelectorPlugin/PatchSelectorPlugin_vst3_helper/
+PatchSelectorPlugin/Products/
+
+# Plugin binaries and packaged outputs
+*.component
+*.vst3
+*.appex
+*.app
+*.pkg
+*.dmg
+*.a
+*.o
+*.obj
+*.so
+*.dylib
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+*.cache
+*.pch
+
+# Optional local resources
+.env
+.env.*
