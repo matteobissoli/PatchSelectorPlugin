@@ -10,6 +10,8 @@ namespace IDs
     static constexpr auto autoSendOnSelection = "autoSendOnSelection";
     static constexpr auto sendOnLoad = "sendOnLoad";
     static constexpr auto resendOnTransportStart = "resendOnTransportStart";
+    static constexpr auto previousPatchTrigger = "previousPatchTrigger";
+    static constexpr auto nextPatchTrigger = "nextPatchTrigger";
 }
 
 PatchSelectorAudioProcessor::PatchSelectorAudioProcessor()
@@ -64,6 +66,18 @@ void PatchSelectorAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     const auto isPlayingNow = isTransportCurrentlyPlaying();
     if (getResendOnTransportStart() && isPlayingNow && ! lastTransportPlaying)
         toSend.addArray(createSelectedPatchMessages(getDetectedMidiChannel()));
+
+    const auto previousPatchTriggerDown = apvts.getRawParameterValue(IDs::previousPatchTrigger)->load() > 0.5f;
+    const auto nextPatchTriggerDown = apvts.getRawParameterValue(IDs::nextPatchTrigger)->load() > 0.5f;
+
+    if (previousPatchTriggerDown && ! lastPreviousPatchTriggerDown)
+        stepSelectedPatchInFilteredList(-1);
+
+    if (nextPatchTriggerDown && ! lastNextPatchTriggerDown)
+        stepSelectedPatchInFilteredList(1);
+
+    lastPreviousPatchTriggerDown = previousPatchTriggerDown;
+    lastNextPatchTriggerDown = nextPatchTriggerDown;
 
     lastTransportPlaying = isPlayingNow;
 
@@ -328,6 +342,41 @@ void PatchSelectorAudioProcessor::stopSoundTest()
     soundTestActive = false;
 }
 
+void PatchSelectorAudioProcessor::setActiveFilterState(const juce::String& categoryFilter, const juce::String& searchText)
+{
+    const juce::ScopedLock lock(filterStateLock);
+    activeCategoryFilter = categoryFilter;
+    activeSearchText = searchText;
+}
+
+bool PatchSelectorAudioProcessor::stepSelectedPatchInFilteredList(int direction)
+{
+    juce::String categoryFilter;
+    juce::String searchText;
+
+    {
+        const juce::ScopedLock lock(filterStateLock);
+        categoryFilter = activeCategoryFilter;
+        searchText = activeSearchText;
+    }
+
+    auto filteredIndices = buildVisiblePatchIndices(categoryFilter, searchText);
+    if (filteredIndices.empty())
+        return false;
+
+    auto visibleIterator = std::find(filteredIndices.begin(), filteredIndices.end(), selectedPatchIndex);
+    int visibleIndex = 0;
+
+    if (visibleIterator != filteredIndices.end())
+        visibleIndex = (int) std::distance(filteredIndices.begin(), visibleIterator);
+
+    visibleIndex = juce::jlimit(0,
+                                (int) filteredIndices.size() - 1,
+                                visibleIndex + direction);
+
+    return selectPatchByRealIndex(filteredIndices[(size_t) visibleIndex], getAutoSendOnSelection());
+}
+
 juce::File PatchSelectorAudioProcessor::getLibraryFolder() const
 {
     return juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory)
@@ -406,6 +455,12 @@ juce::AudioProcessorValueTreeState::ParameterLayout PatchSelectorAudioProcessor:
     parameters.push_back(std::make_unique<juce::AudioParameterBool>(IDs::resendOnTransportStart,
                                                                     "Resend On Transport Start",
                                                                     true));
+    parameters.push_back(std::make_unique<juce::AudioParameterBool>(IDs::previousPatchTrigger,
+                                                                    "Previous Patch",
+                                                                    false));
+    parameters.push_back(std::make_unique<juce::AudioParameterBool>(IDs::nextPatchTrigger,
+                                                                    "Next Patch",
+                                                                    false));
 
     return { parameters.begin(), parameters.end() };
 }

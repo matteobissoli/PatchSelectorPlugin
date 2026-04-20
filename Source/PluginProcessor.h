@@ -68,6 +68,8 @@ public:
     void setSoundTestChordIndex(int index) noexcept;
     void startSoundTest();
     void stopSoundTest();
+    void setActiveFilterState(const juce::String& categoryFilter, const juce::String& searchText);
+    bool stepSelectedPatchInFilteredList(int direction);
 
     juce::File getLibraryFolder() const;
     void ensureLibraryFolderExists() const;
@@ -97,7 +99,12 @@ private:
     int soundTestChannel = 1;
     int soundTestChordIndex = 0;
     bool hasInitialisedTestMidiChannel = false;
+    bool lastPreviousPatchTriggerDown = false;
+    bool lastNextPatchTriggerDown = false;
     std::array<int, 3> activeSoundTestNotes { 60, 64, 67 };
+    juce::CriticalSection filterStateLock;
+    juce::String activeCategoryFilter;
+    juce::String activeSearchText;
 
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
     void enqueueMidiMessages(const juce::Array<juce::MidiMessage>& messages);

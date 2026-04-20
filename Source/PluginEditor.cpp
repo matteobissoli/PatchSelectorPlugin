@@ -109,6 +109,7 @@ PatchSelectorAudioProcessorEditor::PatchSelectorAudioProcessorEditor(PatchSelect
                                                                                                       midiChannelCombo);
 
     refreshView();
+    startTimerHz(10);
 }
 
 PatchSelectorAudioProcessorEditor::~PatchSelectorAudioProcessorEditor()
@@ -245,6 +246,7 @@ void PatchSelectorAudioProcessorEditor::refreshView()
 
 void PatchSelectorAudioProcessorEditor::rebuildVisiblePatchList()
 {
+    audioProcessor.setActiveFilterState(categoryCombo.getText(), searchEditor.getText());
     visiblePatchIndices = audioProcessor.buildVisiblePatchIndices(categoryCombo.getText(), searchEditor.getText());
     patchList.updateContent();
     syncSelectionFromProcessor();
@@ -509,4 +511,21 @@ void PatchSelectorAudioProcessorEditor::textEditorTextChanged(juce::TextEditor& 
 {
     if (&editor == &searchEditor)
         rebuildVisiblePatchList();
+}
+
+void PatchSelectorAudioProcessorEditor::timerCallback()
+{
+    const auto selectedRealIndex = audioProcessor.getSelectedPatchIndex();
+    const auto selectedVisibleRow = patchList.getSelectedRow();
+
+    if (selectedVisibleRow >= 0
+        && selectedVisibleRow < (int) visiblePatchIndices.size()
+        && visiblePatchIndices[(size_t) selectedVisibleRow] == selectedRealIndex)
+        return;
+
+    syncSelectionFromProcessor();
+
+    auto it = std::find(visiblePatchIndices.begin(), visiblePatchIndices.end(), selectedRealIndex);
+    if (it != visiblePatchIndices.end())
+        patchList.scrollToEnsureRowIsOnscreen((int) std::distance(visiblePatchIndices.begin(), it));
 }

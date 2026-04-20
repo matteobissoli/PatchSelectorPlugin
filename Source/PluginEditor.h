@@ -7,7 +7,8 @@ class PatchSelectorAudioProcessorEditor : public juce::AudioProcessorEditor,
                                          private juce::Button::Listener,
                                          private juce::ComboBox::Listener,
                                          private juce::TextEditor::Listener,
-                                         private juce::ListBoxModel
+                                         private juce::ListBoxModel,
+                                         private juce::Timer
 {
 public:
     explicit PatchSelectorAudioProcessorEditor(PatchSelectorAudioProcessor&);
@@ -69,6 +70,7 @@ private:
     void buttonStateChanged(juce::Button* button) override;
     void comboBoxChanged(juce::ComboBox* comboBoxThatHasChanged) override;
     void textEditorTextChanged(juce::TextEditor& editor) override;
+    void timerCallback() override;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PatchSelectorAudioProcessorEditor)
 };
