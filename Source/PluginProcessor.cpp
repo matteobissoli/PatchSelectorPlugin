@@ -31,7 +31,6 @@ PatchSelectorAudioProcessor::PatchSelectorAudioProcessor()
 void PatchSelectorAudioProcessor::prepareToPlay(double, int)
 {
     lastTransportPlaying = false;
-    detectedMidiChannel = getTestMidiChannel();
 }
 
 void PatchSelectorAudioProcessor::releaseResources()
@@ -49,14 +48,6 @@ void PatchSelectorAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     juce::ScopedNoDenormals noDenormals;
     buffer.clear();
 
-    for (const auto metadata : midiMessages)
-    {
-        const auto message = metadata.getMessage();
-
-        if (message.getChannel() >= 1 && message.getChannel() <= 16)
-            detectedMidiChannel = message.getChannel();
-    }
-
     juce::Array<juce::MidiMessage> toSend;
     {
         const juce::ScopedLock lock(pendingMidiLock);
@@ -65,7 +56,7 @@ void PatchSelectorAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
 
     const auto isPlayingNow = isTransportCurrentlyPlaying();
     if (getResendOnTransportStart() && isPlayingNow && ! lastTransportPlaying)
-        toSend.addArray(createSelectedPatchMessages(getDetectedMidiChannel()));
+        toSend.addArray(createSelectedPatchMessages(getTestMidiChannel()));
 
     const auto previousPatchTriggerDown = apvts.getRawParameterValue(IDs::previousPatchTrigger)->load() > 0.5f;
     const auto nextPatchTriggerDown = apvts.getRawParameterValue(IDs::nextPatchTrigger)->load() > 0.5f;
@@ -486,11 +477,6 @@ juce::Array<juce::MidiMessage> PatchSelectorAudioProcessor::createSelectedPatchM
     return MidiDispatchEngine::createPatchSelectMessages(patch,
                                                          midiChannel,
                                                          patchLibrary->device.programBase);
-}
-
-int PatchSelectorAudioProcessor::getDetectedMidiChannel() const noexcept
-{
-    return juce::jlimit(1, 16, detectedMidiChannel);
 }
 
 bool PatchSelectorAudioProcessor::isTransportCurrentlyPlaying() const

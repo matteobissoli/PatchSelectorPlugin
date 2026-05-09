@@ -29,7 +29,7 @@ PatchSelectorAudioProcessorEditor::PatchSelectorAudioProcessorEditor(PatchSelect
     libraryLabel.setText("Library", juce::dontSendNotification);
     categoryLabel.setText("Category", juce::dontSendNotification);
     searchLabel.setText("Search", juce::dontSendNotification);
-    midiChannelLabel.setText("Test Ch.", juce::dontSendNotification);
+    midiChannelLabel.setText("MIDI Ch.", juce::dontSendNotification);
     selectedPatchHeaderLabel.setText("Patch", juce::dontSendNotification);
     rescanButton.setButtonText("Rescan");
     rescanButton.setTooltip("Refresh library list");

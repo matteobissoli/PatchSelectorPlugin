@@ -94,7 +94,6 @@ private:
     juce::String loadedLibraryPath;
     juce::String lastErrorMessage;
     bool lastTransportPlaying = false;
-    int detectedMidiChannel = 1;
     bool soundTestActive = false;
     int soundTestChannel = 1;
     int soundTestChordIndex = 0;
@@ -109,7 +108,6 @@ private:
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
     void enqueueMidiMessages(const juce::Array<juce::MidiMessage>& messages);
     juce::Array<juce::MidiMessage> createSelectedPatchMessages(int midiChannel) const;
-    int getDetectedMidiChannel() const noexcept;
     bool isTransportCurrentlyPlaying() const;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PatchSelectorAudioProcessor)

@@ -81,6 +81,25 @@ Artifacts are generated for:
 - VST3 (`.vst3`)
 - Standalone app
 
+### Universal Build For Apple Silicon And Intel
+
+The project is configured to build macOS universal binaries with both:
+
+- `arm64`
+- `x86_64`
+
+This is important if you want the AU plugin to work both on Apple Silicon systems and on Intel hosts such as MainStage 3.6.4 running natively on Intel Macs.
+
+If you changed architecture settings in `CMakeLists.txt`, re-run CMake configuration before rebuilding, otherwise Xcode may keep using older generated settings.
+
+To verify the resulting AU binary:
+
+```bash
+lipo -info "build-xcode/PatchSelectorPlugin_artefacts/Release/AU/Patch Selector.component/Contents/MacOS/Patch Selector"
+```
+
+The output should mention both `arm64` and `x86_64`.
+
 ## Usage
 
 1. Build the project.

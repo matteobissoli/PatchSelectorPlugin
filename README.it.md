@@ -81,6 +81,25 @@ Vengono generati:
 - VST3 (`.vst3`)
 - app Standalone
 
+### Build Universal Per Apple Silicon E Intel
+
+Il progetto e configurato per generare binari macOS universal con entrambe le architetture:
+
+- `arm64`
+- `x86_64`
+
+Questo e importante se vuoi che il plugin AU funzioni sia su sistemi Apple Silicon sia su host Intel come MainStage 3.6.4 eseguito nativamente su Mac Intel.
+
+Se cambi le impostazioni di architettura in `CMakeLists.txt`, devi rieseguire la configurazione CMake prima della build, altrimenti Xcode puo continuare a usare impostazioni generate in precedenza.
+
+Per verificare il binario AU risultante:
+
+```bash
+lipo -info "build-xcode/PatchSelectorPlugin_artefacts/Release/AU/Patch Selector.component/Contents/MacOS/Patch Selector"
+```
+
+L'output dovrebbe indicare sia `arm64` sia `x86_64`.
+
 ## Uso
 
 1. Compila il progetto.
