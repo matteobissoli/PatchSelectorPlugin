@@ -38,6 +38,7 @@ PatchSelectorAudioProcessorEditor::PatchSelectorAudioProcessorEditor(PatchSelect
     autoSendToggle.setButtonText("Auto Send");
     sendOnLoadToggle.setButtonText("Send on Load");
     resendOnTransportToggle.setButtonText("Transport Start");
+    autoSoundTestToggle.setButtonText("Auto Sound Test");
 
     searchEditor.setTextToShowWhenEmpty("Type to filter patches...", juce::Colours::grey);
     searchEditor.addListener(this);
@@ -93,6 +94,7 @@ PatchSelectorAudioProcessorEditor::PatchSelectorAudioProcessorEditor(PatchSelect
     addAndMakeVisible(autoSendToggle);
     addAndMakeVisible(sendOnLoadToggle);
     addAndMakeVisible(resendOnTransportToggle);
+    addAndMakeVisible(autoSoundTestToggle);
     addAndMakeVisible(patchList);
 
     autoSendAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(audioProcessor.getValueTreeState(),
@@ -104,6 +106,9 @@ PatchSelectorAudioProcessorEditor::PatchSelectorAudioProcessorEditor(PatchSelect
     resendOnTransportAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(audioProcessor.getValueTreeState(),
                                                                                                           "resendOnTransportStart",
                                                                                                           resendOnTransportToggle);
+    autoSoundTestAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(audioProcessor.getValueTreeState(),
+                                                                                                     "autoSoundTestOnPatchChange",
+                                                                                                     autoSoundTestToggle);
     midiChannelAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(audioProcessor.getValueTreeState(),
                                                                                                       "midiChannel",
                                                                                                       midiChannelCombo);
@@ -202,6 +207,8 @@ void PatchSelectorAudioProcessorEditor::resized()
     soundTestChordCombo.setBounds(chordComboArea);
     soundTestRow.removeFromLeft(controlGap);
     soundTestButton.setBounds(soundTestRow);
+    leftColumn.removeFromTop(4);
+    autoSoundTestToggle.setBounds(leftColumn.removeFromTop(toggleRowHeight));
 
     auto bottomInfoArea = leftColumn.removeFromBottom(56 + sectionGap + controlHeight);
     auto selectedPatchHeaderRow = bottomInfoArea.removeFromTop(14);

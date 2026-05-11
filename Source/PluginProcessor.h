@@ -61,6 +61,9 @@ public:
     bool getResendOnTransportStart() const;
     void setResendOnTransportStart(bool shouldResend);
 
+    bool getAutoSoundTestOnPatchChange() const;
+    void setAutoSoundTestOnPatchChange(bool shouldAutoSoundTest);
+
     void sendSelectedPatchNow();
     int getTestMidiChannel() const;
     void setTestMidiChannel(int channel);
@@ -86,6 +89,7 @@ private:
 
     juce::Array<juce::MidiMessage> pendingMidiMessages;
     juce::CriticalSection pendingMidiLock;
+    juce::CriticalSection autoSoundTestLock;
 
     juce::Array<juce::File> availableLibraryFiles;
     juce::StringArray availableLibraryNames;
@@ -94,13 +98,17 @@ private:
     juce::String loadedLibraryPath;
     juce::String lastErrorMessage;
     bool lastTransportPlaying = false;
+    double currentSampleRate = 44100.0;
     bool soundTestActive = false;
     int soundTestChannel = 1;
     int soundTestChordIndex = 0;
+    int pendingAutoSoundTestNoteOffSamples = -1;
+    int pendingAutoSoundTestChannel = 1;
     bool hasInitialisedTestMidiChannel = false;
     bool lastPreviousPatchTriggerDown = false;
     bool lastNextPatchTriggerDown = false;
     std::array<int, 3> activeSoundTestNotes { 60, 64, 67 };
+    std::array<int, 3> pendingAutoSoundTestNotes { 60, 64, 67 };
     juce::CriticalSection filterStateLock;
     juce::String activeCategoryFilter;
     juce::String activeSearchText;
@@ -108,6 +116,8 @@ private:
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
     void enqueueMidiMessages(const juce::Array<juce::MidiMessage>& messages);
     juce::Array<juce::MidiMessage> createSelectedPatchMessages(int midiChannel) const;
+    std::array<int, 3> createSoundTestNotes() const noexcept;
+    void triggerAutoSoundTest();
     bool isTransportCurrentlyPlaying() const;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PatchSelectorAudioProcessor)

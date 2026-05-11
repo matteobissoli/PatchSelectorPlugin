@@ -44,6 +44,7 @@ private:
     juce::ToggleButton autoSendToggle { "Auto send on selection" };
     juce::ToggleButton sendOnLoadToggle { "Resend on preset/project load" };
     juce::ToggleButton resendOnTransportToggle { "Resend on transport start" };
+    juce::ToggleButton autoSoundTestToggle { "Auto Sound Test" };
     juce::ListBox patchList { "Patch List", this };
 
     std::vector<int> visiblePatchIndices;
@@ -51,6 +52,7 @@ private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> autoSendAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> sendOnLoadAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> resendOnTransportAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> autoSoundTestAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> midiChannelAttachment;
 
     void refreshView();

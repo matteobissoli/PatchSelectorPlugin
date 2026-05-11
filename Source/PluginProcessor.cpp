@@ -3,6 +3,7 @@
 #include "repository/PatchLibraryLoader.h"
 #include "midi/MidiDispatchEngine.h"
 #include <algorithm>
+#include <cmath>
 
 namespace IDs
 {
@@ -10,6 +11,7 @@ namespace IDs
     static constexpr auto autoSendOnSelection = "autoSendOnSelection";
     static constexpr auto sendOnLoad = "sendOnLoad";
     static constexpr auto resendOnTransportStart = "resendOnTransportStart";
+    static constexpr auto autoSoundTestOnPatchChange = "autoSoundTestOnPatchChange";
     static constexpr auto previousPatchTrigger = "previousPatchTrigger";
     static constexpr auto nextPatchTrigger = "nextPatchTrigger";
 }
@@ -28,9 +30,11 @@ PatchSelectorAudioProcessor::PatchSelectorAudioProcessor()
     }
 }
 
-void PatchSelectorAudioProcessor::prepareToPlay(double, int)
+void PatchSelectorAudioProcessor::prepareToPlay(double sampleRate, int)
 {
     lastTransportPlaying = false;
+    currentSampleRate = sampleRate > 0.0 ? sampleRate : 44100.0;
+    pendingAutoSoundTestNoteOffSamples = -1;
 }
 
 void PatchSelectorAudioProcessor::releaseResources()
@@ -75,6 +79,38 @@ void PatchSelectorAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     int sampleOffset = 0;
     for (const auto& message : toSend)
         midiMessages.addEvent(message, sampleOffset++);
+
+    int noteOffOffset = -1;
+    int noteOffChannel = 1;
+    std::array<int, 3> noteOffNotes { 60, 64, 67 };
+
+    {
+        const juce::ScopedLock lock(autoSoundTestLock);
+
+        if (pendingAutoSoundTestNoteOffSamples >= 0)
+        {
+            const auto numSamples = buffer.getNumSamples();
+
+            if (pendingAutoSoundTestNoteOffSamples <= numSamples)
+            {
+                noteOffOffset = juce::jlimit(0, juce::jmax(0, numSamples - 1), pendingAutoSoundTestNoteOffSamples);
+                noteOffChannel = pendingAutoSoundTestChannel;
+                noteOffNotes = pendingAutoSoundTestNotes;
+                pendingAutoSoundTestNoteOffSamples = -1;
+            }
+            else
+            {
+                pendingAutoSoundTestNoteOffSamples -= numSamples;
+            }
+        }
+    }
+
+    if (noteOffOffset >= 0)
+    {
+        midiMessages.addEvent(juce::MidiMessage::noteOff(noteOffChannel, noteOffNotes[0]), noteOffOffset);
+        midiMessages.addEvent(juce::MidiMessage::noteOff(noteOffChannel, noteOffNotes[1]), noteOffOffset);
+        midiMessages.addEvent(juce::MidiMessage::noteOff(noteOffChannel, noteOffNotes[2]), noteOffOffset);
+    }
 }
 
 juce::AudioProcessorEditor* PatchSelectorAudioProcessor::createEditor()
@@ -218,7 +254,12 @@ bool PatchSelectorAudioProcessor::selectPatchByRealIndex(int realPatchIndex, boo
     selectedPatchIndex = realPatchIndex;
 
     if (autoSend)
+    {
         sendSelectedPatchNow();
+
+        if (getAutoSoundTestOnPatchChange())
+            triggerAutoSoundTest();
+    }
 
     return true;
 }
@@ -292,6 +333,18 @@ void PatchSelectorAudioProcessor::setResendOnTransportStart(bool shouldResend)
     parameter->setValueNotifyingHost(parameter->convertTo0to1(shouldResend ? 1.0f : 0.0f));
 }
 
+bool PatchSelectorAudioProcessor::getAutoSoundTestOnPatchChange() const
+{
+    return apvts.getRawParameterValue(IDs::autoSoundTestOnPatchChange)->load() > 0.5f;
+}
+
+void PatchSelectorAudioProcessor::setAutoSoundTestOnPatchChange(bool shouldAutoSoundTest)
+{
+    auto* parameter = apvts.getParameter(IDs::autoSoundTestOnPatchChange);
+    jassert(parameter != nullptr);
+    parameter->setValueNotifyingHost(parameter->convertTo0to1(shouldAutoSoundTest ? 1.0f : 0.0f));
+}
+
 void PatchSelectorAudioProcessor::sendSelectedPatchNow()
 {
     enqueueMidiMessages(createSelectedPatchMessages(getTestMidiChannel()));
@@ -302,15 +355,9 @@ void PatchSelectorAudioProcessor::startSoundTest()
     if (soundTestActive)
         return;
 
-    static constexpr std::array<int, 12> rootNotes { 60, 67, 62, 69, 64, 71, 66, 61, 68, 63, 70, 65 };
-
-    const auto rootIndex = soundTestChordIndex / 2;
-    const auto isMinor = (soundTestChordIndex % 2) != 0;
     soundTestChannel = getTestMidiChannel();
     soundTestActive = true;
-    activeSoundTestNotes = { rootNotes[(size_t) rootIndex],
-                             rootNotes[(size_t) rootIndex] + (isMinor ? 3 : 4),
-                             rootNotes[(size_t) rootIndex] + 7 };
+    activeSoundTestNotes = createSoundTestNotes();
 
     juce::Array<juce::MidiMessage> messages;
     messages.add(juce::MidiMessage::noteOn(soundTestChannel, activeSoundTestNotes[0], (juce::uint8) 100));
@@ -331,6 +378,44 @@ void PatchSelectorAudioProcessor::stopSoundTest()
     enqueueMidiMessages(messages);
 
     soundTestActive = false;
+}
+
+std::array<int, 3> PatchSelectorAudioProcessor::createSoundTestNotes() const noexcept
+{
+    static constexpr std::array<int, 12> rootNotes { 60, 67, 62, 69, 64, 71, 66, 61, 68, 63, 70, 65 };
+
+    const auto rootIndex = juce::jlimit(0, 11, soundTestChordIndex / 2);
+    const auto isMinor = (soundTestChordIndex % 2) != 0;
+    const auto root = rootNotes[(size_t) rootIndex];
+
+    return { root, root + (isMinor ? 3 : 4), root + 7 };
+}
+
+void PatchSelectorAudioProcessor::triggerAutoSoundTest()
+{
+    juce::Array<juce::MidiMessage> messages;
+
+    {
+        const juce::ScopedLock lock(autoSoundTestLock);
+
+        if (pendingAutoSoundTestNoteOffSamples >= 0)
+        {
+            messages.add(juce::MidiMessage::noteOff(pendingAutoSoundTestChannel, pendingAutoSoundTestNotes[0]));
+            messages.add(juce::MidiMessage::noteOff(pendingAutoSoundTestChannel, pendingAutoSoundTestNotes[1]));
+            messages.add(juce::MidiMessage::noteOff(pendingAutoSoundTestChannel, pendingAutoSoundTestNotes[2]));
+        }
+
+        pendingAutoSoundTestChannel = getTestMidiChannel();
+        pendingAutoSoundTestNotes = createSoundTestNotes();
+
+        messages.add(juce::MidiMessage::noteOn(pendingAutoSoundTestChannel, pendingAutoSoundTestNotes[0], (juce::uint8) 100));
+        messages.add(juce::MidiMessage::noteOn(pendingAutoSoundTestChannel, pendingAutoSoundTestNotes[1], (juce::uint8) 100));
+        messages.add(juce::MidiMessage::noteOn(pendingAutoSoundTestChannel, pendingAutoSoundTestNotes[2], (juce::uint8) 100));
+
+        pendingAutoSoundTestNoteOffSamples = (int) std::round(currentSampleRate * 0.75);
+    }
+
+    enqueueMidiMessages(messages);
 }
 
 void PatchSelectorAudioProcessor::setActiveFilterState(const juce::String& categoryFilter, const juce::String& searchText)
@@ -446,6 +531,9 @@ juce::AudioProcessorValueTreeState::ParameterLayout PatchSelectorAudioProcessor:
     parameters.push_back(std::make_unique<juce::AudioParameterBool>(IDs::resendOnTransportStart,
                                                                     "Resend On Transport Start",
                                                                     true));
+    parameters.push_back(std::make_unique<juce::AudioParameterBool>(IDs::autoSoundTestOnPatchChange,
+                                                                    "Auto Sound Test On Patch Change",
+                                                                    false));
     parameters.push_back(std::make_unique<juce::AudioParameterBool>(IDs::previousPatchTrigger,
                                                                     "Previous Patch",
                                                                     false));
