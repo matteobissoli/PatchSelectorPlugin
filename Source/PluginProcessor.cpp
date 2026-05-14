@@ -35,6 +35,11 @@ void PatchSelectorAudioProcessor::prepareToPlay(double sampleRate, int)
     lastTransportPlaying = false;
     currentSampleRate = sampleRate > 0.0 ? sampleRate : 44100.0;
     pendingAutoSoundTestNoteOffSamples = -1;
+    hasSeenProcessBlock = false;
+    lastProcessBlockTimeMs = 0.0;
+
+    if (getSendOnLoad())
+        scheduleLoadPatchSend();
 }
 
 void PatchSelectorAudioProcessor::releaseResources()
@@ -51,6 +56,13 @@ void PatchSelectorAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
 {
     juce::ScopedNoDenormals noDenormals;
     buffer.clear();
+
+    const auto nowMs = juce::Time::getMillisecondCounterHiRes();
+    if (hasSeenProcessBlock && nowMs - lastProcessBlockTimeMs > 250.0 && getSendOnLoad())
+        scheduleLoadPatchSend();
+
+    hasSeenProcessBlock = true;
+    lastProcessBlockTimeMs = nowMs;
 
     juce::Array<juce::MidiMessage> toSend;
     {
@@ -79,6 +91,33 @@ void PatchSelectorAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     int sampleOffset = 0;
     for (const auto& message : toSend)
         midiMessages.addEvent(message, sampleOffset++);
+
+    {
+        const auto numSamples = buffer.getNumSamples();
+        const auto maxSampleOffset = juce::jmax(0, numSamples - 1);
+        const auto resendIntervalSamples = juce::jmax(1, (int) std::round(currentSampleRate * 0.25));
+
+        const juce::ScopedLock lock(scheduledPatchSendLock);
+
+        while (scheduledPatchSendCount > 0 && scheduledPatchSendSamplesUntilNext >= 0)
+        {
+            if (scheduledPatchSendSamplesUntilNext > numSamples)
+            {
+                scheduledPatchSendSamplesUntilNext -= numSamples;
+                break;
+            }
+
+            const auto sendOffset = juce::jlimit(0, maxSampleOffset, scheduledPatchSendSamplesUntilNext);
+            auto patchMessages = createSelectedPatchMessages(getTestMidiChannel());
+            int patchMessageOffset = sendOffset;
+
+            for (const auto& message : patchMessages)
+                midiMessages.addEvent(message, juce::jlimit(0, maxSampleOffset, patchMessageOffset++));
+
+            --scheduledPatchSendCount;
+            scheduledPatchSendSamplesUntilNext = scheduledPatchSendCount > 0 ? resendIntervalSamples : -1;
+        }
+    }
 
     int noteOffOffset = -1;
     int noteOffChannel = 1;
@@ -146,17 +185,21 @@ void PatchSelectorAudioProcessor::setStateInformation(const void* data, int size
     loadedLibraryPath = state.getProperty("libraryPath").toString();
     selectedPatchIndex = static_cast<int>(state.getProperty("selectedPatchIndex", -1));
 
+    bool didLoadLibrary = false;
+
     if (loadedLibraryPath.isNotEmpty())
     {
         juce::String error;
-        if (loadPatchLibrary(juce::File(loadedLibraryPath), error) && getSendOnLoad())
-            sendSelectedPatchNow();
+        didLoadLibrary = loadPatchLibrary(juce::File(loadedLibraryPath), error);
     }
     else if (availableLibraryFiles.size() > 0)
     {
         juce::String error;
-        loadAvailableLibraryByIndex(0, error);
+        didLoadLibrary = loadAvailableLibraryByIndex(0, error);
     }
+
+    if (didLoadLibrary && getSendOnLoad())
+        scheduleLoadPatchSend();
 }
 
 bool PatchSelectorAudioProcessor::loadPatchLibrary(const juce::File& file, juce::String& error)
@@ -389,6 +432,13 @@ std::array<int, 3> PatchSelectorAudioProcessor::createSoundTestNotes() const noe
     const auto root = rootNotes[(size_t) rootIndex];
 
     return { root, root + (isMinor ? 3 : 4), root + 7 };
+}
+
+void PatchSelectorAudioProcessor::scheduleLoadPatchSend()
+{
+    const juce::ScopedLock lock(scheduledPatchSendLock);
+    scheduledPatchSendCount = 5;
+    scheduledPatchSendSamplesUntilNext = 0;
 }
 
 void PatchSelectorAudioProcessor::triggerAutoSoundTest()

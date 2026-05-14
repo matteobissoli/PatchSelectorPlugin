@@ -90,6 +90,7 @@ private:
     juce::Array<juce::MidiMessage> pendingMidiMessages;
     juce::CriticalSection pendingMidiLock;
     juce::CriticalSection autoSoundTestLock;
+    juce::CriticalSection scheduledPatchSendLock;
 
     juce::Array<juce::File> availableLibraryFiles;
     juce::StringArray availableLibraryNames;
@@ -99,11 +100,15 @@ private:
     juce::String lastErrorMessage;
     bool lastTransportPlaying = false;
     double currentSampleRate = 44100.0;
+    double lastProcessBlockTimeMs = 0.0;
+    bool hasSeenProcessBlock = false;
     bool soundTestActive = false;
     int soundTestChannel = 1;
     int soundTestChordIndex = 0;
     int pendingAutoSoundTestNoteOffSamples = -1;
     int pendingAutoSoundTestChannel = 1;
+    int scheduledPatchSendCount = 0;
+    int scheduledPatchSendSamplesUntilNext = -1;
     bool hasInitialisedTestMidiChannel = false;
     bool lastPreviousPatchTriggerDown = false;
     bool lastNextPatchTriggerDown = false;
@@ -117,6 +122,7 @@ private:
     void enqueueMidiMessages(const juce::Array<juce::MidiMessage>& messages);
     juce::Array<juce::MidiMessage> createSelectedPatchMessages(int midiChannel) const;
     std::array<int, 3> createSoundTestNotes() const noexcept;
+    void scheduleLoadPatchSend();
     void triggerAutoSoundTest();
     bool isTransportCurrentlyPlaying() const;
 
